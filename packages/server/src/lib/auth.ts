@@ -7,7 +7,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 import { admin, organization, twoFactor } from "better-auth/plugins";
 import { and, desc, eq } from "drizzle-orm";
-import { BETTER_AUTH_SECRET, IS_CLOUD } from "../constants";
+import { IS_CLOUD } from "../constants";
 import { db } from "../db";
 import * as schema from "../db/schema";
 import {
@@ -27,6 +27,7 @@ import {
 } from "../verification/send-verification-email";
 import { getPublicIpWithFallback } from "../wss/utils";
 import { ac, adminRole, memberRole, ownerRole } from "./access-control";
+import { betterAuthSecret } from "./auth-secret";
 
 const { handler, api } = betterAuth({
 	database: drizzleAdapter(db, {
@@ -38,8 +39,9 @@ const { handler, api } = betterAuth({
 		"/organization/create",
 		"/organization/update",
 		"/organization/delete",
+		...(!IS_CLOUD ? ["/verify-email"] : []),
 	],
-	secret: BETTER_AUTH_SECRET,
+	secret: betterAuthSecret,
 	...(!IS_CLOUD
 		? {
 				advanced: {
@@ -408,23 +410,6 @@ const { handler, api } = betterAuth({
 			dynamicAccessControl: {
 				enabled: true,
 				maximumRolesPerOrganization: 10,
-			},
-			async sendInvitationEmail(data, _request) {
-				if (IS_CLOUD) {
-					const host =
-						process.env.NODE_ENV === "development"
-							? "http://localhost:3000"
-							: "https://app.dokploy.com";
-					const inviteLink = `${host}/invitation?token=${data.id}`;
-
-					await sendEmail({
-						email: data.email,
-						subject: "Invitation to join organization",
-						text: `
-					<p>You are invited to join ${data.organization.name} on Dokploy. Click the link to accept the invitation: <a href="${inviteLink}">Accept Invitation</a></p>
-					`,
-					});
-				}
 			},
 		}),
 		...(IS_CLOUD
