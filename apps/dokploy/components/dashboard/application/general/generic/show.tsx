@@ -1,6 +1,6 @@
 import { GitBranch, Loader2, UploadCloud } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SaveDockerProvider } from "@/components/dashboard/application/general/generic/save-docker-provider";
 import { SaveGitProvider } from "@/components/dashboard/application/general/generic/save-git-provider";
@@ -52,6 +52,14 @@ export const ShowProviderForm = ({ applicationId }: Props) => {
 		api.application.disconnectGitProvider.useMutation();
 
 	const [tab, setSab] = useState<TabState>(application?.sourceType || "github");
+	
+	const hasSyncedTab = useRef(false);
+	useEffect(() => {
+		if (!hasSyncedTab.current && application?.sourceType) {
+			setSab(application.sourceType as TabState);
+			hasSyncedTab.current = true;
+		}
+	}, [application?.sourceType]);
 
 	const isLoading =
 		isLoadingGithub || isLoadingGitlab || isLoadingBitbucket || isLoadingGitea;

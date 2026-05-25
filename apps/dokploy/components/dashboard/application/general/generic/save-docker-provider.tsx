@@ -132,7 +132,11 @@ export const SaveDockerProvider = ({ applicationId }: Props) => {
 	}, [data?.applicationId]);
 
 	const handleRegistryChange = (value: string) => {
-		setSelectedRegistryId(value === "none" ? null : value);
+		if (!value) return;
+		const nextRegistryId = value === "none" ? null : value;
+	
+		if (nextRegistryId === selectedRegistryId) return;
+		setSelectedRegistryId(nextRegistryId);
 		setSelectedImage("");
 		setSelectedTag("latest");
 		setImageSearchInput("");
