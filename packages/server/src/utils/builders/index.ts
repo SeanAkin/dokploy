@@ -222,15 +222,18 @@ export const getAuthConfig = async (application: ApplicationNested) => {
 	} = application;
 
 	if (sourceType === "docker") {
-		// Fall back to linked registry credentials when application-level creds are null
-		const authUser = username ?? registry?.username;
-		const authPass = password ?? registry?.password;
-		const authUrl = registryUrl ?? registry?.registryUrl;
-		if (authUser && authPass) {
+		// Fall back to the linked registry's credentials when the application
+		// has no inline username/password. Registry creds are stripped from the
+		// relation, so we fetch them via findRegistryByIdWithCredentials.
+		if (username && password) {
+			return { password, username, serveraddress: registryUrl || "" };
+		}
+		if (registry) {
+			const r = await findRegistryByIdWithCredentials(registry.registryId);
 			return {
-				password: authPass,
-				username: authUser,
-				serveraddress: authUrl || "",
+				password: r.password,
+				username: r.username,
+				serveraddress: r.registryUrl,
 			};
 		}
 	} else if (registry) {
