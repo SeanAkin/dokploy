@@ -67,9 +67,11 @@ import {
 	apiServerSchema,
 	apiTraefikConfig,
 	apiUpdateDockerCleanup,
+	apiUpdateWebServerBuildsConcurrency,
 	projects,
 	server,
 } from "@/server/db/schema";
+import { assertBuildsConcurrencyAllowed } from "@/server/queues/concurrency";
 import { cleanAllDeploymentQueue } from "@/server/queues/queueSetup";
 import { removeJob, schedule } from "@/server/utils/backup";
 import packageInfo from "../../../package.json";
@@ -77,6 +79,7 @@ import { appRouter } from "../root";
 import {
 	adminProcedure,
 	createTRPCRouter,
+	enterpriseProcedure,
 	protectedProcedure,
 	publicProcedure,
 } from "../trpc";
@@ -441,6 +444,77 @@ export const settingsRouter = createTRPCRouter({
 				action: "update",
 				resourceType: "settings",
 				resourceName: "docker-cleanup",
+			});
+			return true;
+		}),
+
+	updateRemoteServersOnly: enterpriseProcedure
+		.input(z.object({ remoteServersOnly: z.boolean() }))
+		.mutation(async ({ input, ctx }) => {
+			if (IS_CLOUD) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "This feature is only available for self-hosted instances",
+				});
+			}
+
+			await updateWebServerSettings({
+				remoteServersOnly: input.remoteServersOnly,
+			});
+
+			await audit(ctx, {
+				action: "update",
+				resourceType: "settings",
+				resourceName: "remote-servers-only",
+			});
+			return true;
+		}),
+
+	updateBuildsConcurrency: adminProcedure
+		.input(apiUpdateWebServerBuildsConcurrency)
+		.mutation(async ({ input, ctx }) => {
+			if (IS_CLOUD) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "This feature is only available for self-hosted instances",
+				});
+			}
+
+			await assertBuildsConcurrencyAllowed(
+				input.buildsConcurrency,
+				ctx.session.activeOrganizationId,
+			);
+
+			await updateWebServerSettings({
+				buildsConcurrency: input.buildsConcurrency,
+			});
+
+			await audit(ctx, {
+				action: "update",
+				resourceType: "settings",
+				resourceName: "builds-concurrency",
+			});
+			return true;
+		}),
+
+	updateEnforceSSO: enterpriseProcedure
+		.input(z.object({ enforceSSO: z.boolean() }))
+		.mutation(async ({ input, ctx }) => {
+			if (IS_CLOUD) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "This feature is only available for self-hosted instances",
+				});
+			}
+
+			await updateWebServerSettings({
+				enforceSSO: input.enforceSSO,
+			});
+
+			await audit(ctx, {
+				action: "update",
+				resourceType: "settings",
+				resourceName: "enforce-sso",
 			});
 			return true;
 		}),
